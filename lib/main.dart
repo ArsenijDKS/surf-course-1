@@ -1,123 +1,177 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MainApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return const MaterialApp(
+      home: Scaffold(
+        body: GestureContainer(),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+class GestureContainer extends StatefulWidget {
+  const GestureContainer({
+    super.key,
+  });
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<GestureContainer> createState() => _GestureContainerState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  var _incrementCount = 0;
-  var _dicrementCount = 0;
-  bool _hasError = false;
+class _GestureContainerState extends State<GestureContainer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _animation;
 
-  void _incrementCounter() {
+  final _widgetDraggableKey = GlobalKey();
+
+  final _draggableWidgetSize = const Size(150, 150);
+
+  late double _posX;
+  late double _posY;
+
+  final _backgroundColors = <Color>[
+    Colors.green.shade50,
+    Colors.green.shade100,
+    Colors.green.shade200,
+    Colors.green.shade300,
+  ];
+
+  late Color _currentBackgroundColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.ease,
+    );
+
+    _currentBackgroundColor = _backgroundColors[0];
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _posX =
+        MediaQuery.of(context).size.width / 2 - _draggableWidgetSize.width / 2;
+    _posY =
+        MediaQuery.of(context).size.height / 2 - _draggableWidgetSize.height;
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _animationController.dispose();
+  }
+
+  void _changeBackgroundColor() {
+    int currentIndex = _backgroundColors.indexOf(_currentBackgroundColor);
+    if (currentIndex < _backgroundColors.length - 1) {
+      currentIndex++;
+    } else {
+      currentIndex = 0;
+    }
+
     setState(() {
-      _incrementCount++;
-      _counter++;
+      _currentBackgroundColor = _backgroundColors[currentIndex];
     });
   }
 
-  void _dicrementCounter() {
-    setState(() {
-      if (_counter > 0) {
-        _dicrementCount++;
-        _counter--;
-      }
-      if (_counter == 0) {
-        const snackBar =
-            SnackBar(content: Text('Больше вы не можете уменьшить счётчик!'));
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
-      }
-    });
+  void _changePositionOnScreen(DragUpdateDetails details) {
+    final sizeDraggableObj = _draggableWidgetSize;
+    final sizeScreen = MediaQuery.of(context).size;
+
+    late double sysBottomNavHeight = MediaQuery.of(context).padding.top;
+
+    if (_posX + details.delta.dx < 0) {
+      _posX = 0;
+    } else if (_posX + sizeDraggableObj.width + details.delta.dx >
+        sizeScreen.width) {
+      _posX = sizeScreen.width - sizeDraggableObj.width;
+    } else {
+      _posX += details.delta.dx;
+    }
+
+    if (_posY + details.delta.dy < 0) {
+      _posY = 0;
+    } else if (_posY +
+            sizeDraggableObj.height +
+            details.delta.dy +
+            sysBottomNavHeight >
+        sizeScreen.height) {
+      _posY = sizeScreen.height - sizeDraggableObj.height - sysBottomNavHeight;
+    } else {
+      _posY += details.delta.dy;
+    }
+
+    setState(() {});
+  }
+
+  void _animateRotationTransition() {
+    if (!_animationController.isAnimating) {
+      _animationController.forward(from: 0);
+    }
+  }
+
+  void _resetRotationTransition() {
+    _animationController.reset();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'Вы нажали на кнопку столько раз ->',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            SizedBox(
-              height: 10,
-            ),
-            Text(_hasError
-                ? 'Ошибка при вводе числа - число должно быть больше 0!'
-                : ''),
-          ],
-        ),
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+    return SafeArea(
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Прибавляли $_incrementCount раз  ',
-                style: const TextStyle(
-                  fontSize: 16,
+          AnimatedContainer(
+            duration: const Duration(seconds: 0),
+            color: _currentBackgroundColor,
+          ),
+          Positioned(
+            left: _posX,
+            top: _posY,
+            key: _widgetDraggableKey,
+            child: RotationTransition(
+              turns: _animation,
+              child: Container(
+                width: _draggableWidgetSize.width,
+                height: _draggableWidgetSize.height,
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    fit: BoxFit.cover,
+                    image: NetworkImage(
+                        'https://avatars.mds.yandex.net/i?id=9a0f10396baf2e845b9d7a799d40774fcd27ad21-10810377-images-thumbs&n=13'),
+                  ),
                 ),
               ),
-              FloatingActionButton(
-                onPressed: _incrementCounter,
-                child: const Icon(Icons.add),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(
-            height: 10,
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Вычитали $_dicrementCount раз  ',
-                style: const TextStyle(
-                  fontSize: 16,
-                ),
-              ),
-              FloatingActionButton(
-                onPressed: _dicrementCounter,
-                child: const Icon(Icons.remove),
-              )
-            ],
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                _resetRotationTransition();
+                _changeBackgroundColor();
+              },
+              onLongPress: () {
+                _animateRotationTransition();
+              },
+              onPanUpdate: (details) {
+                _resetRotationTransition();
+                _changePositionOnScreen(details);
+              },
+            ),
           ),
         ],
       ),
